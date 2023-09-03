@@ -1,19 +1,28 @@
 'use client'
 
 import * as THREE from 'three'
-import React, { useRef, useState } from 'react'
-import { Canvas, ThreeElements, useFrame } from '@react-three/fiber'
-import { CameraControls } from '@react-three/drei';
+import React, { useRef, useState, useEffect } from 'react'
+import { Canvas, ThreeElements, useFrame, useThree } from '@react-three/fiber'
+import { Bounds, useBounds, OrbitControls, RoundedBox } from '@react-three/drei';
 
+function SelectToZoom({ children }: ThreeElements['mesh']) {
+    const bounds = useBounds()
+    return (
+        <group
+            onClick={(e) => (e.stopPropagation(), e.delta <= 2 && bounds.refresh(e.object).fit())}
+            onPointerMissed={(e) => e.button === 0 && bounds.refresh().fit()}>
+            {children}
+        </group>
+    )
+}
 
 function Sphere(props: ThreeElements['mesh']) {
     const meshRef = useRef<THREE.Mesh>(null!)
 
-    useFrame((state) => (meshRef.current.rotation.y += 0.001));
     return (<mesh
         {...props}
         ref={meshRef}>
-        <sphereGeometry args={[2, 32]} />
+        <sphereGeometry args={[1, 32]} />
         <meshStandardMaterial color={"royalblue"} transparent={true} opacity={1} wireframe={true} />
     </mesh>)
 }
@@ -23,33 +32,39 @@ function Box(props: ThreeElements['mesh']) {
     const [hovered, hover] = useState(false);
     const [clicked, click] = useState(false);
 
-    useFrame((state) => (meshRef.current.rotation.x += 0.001));
-    return (<mesh
+    return (<RoundedBox
         {...props}
         ref={meshRef}
-        scale={clicked ? 1.5 : 1}
+        //scale={clicked ? 1.5 : 1}
         onClick={(event) => click(!clicked)}
         onPointerOver={(event) => hover(true)}
-        onPointerOut={(event) => hover(false)}>
-        <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color={hovered ? 'hotpink' : 'orange'} />
-    </mesh>
+        onPointerOut={(event) => hover(false)}
+        args={[0.25, 0.25, 0.25]}>
+        <meshStandardMaterial color={hovered ? 'hotpink' : 'yellow'} />
+    </RoundedBox>
     )
 }
 
 
 export default function World() {
-    const cameraControlRef = useRef<CameraControls | null>(null);
-
+    const position = 1.125;
     return (
         <Canvas>
-            <CameraControls ref={cameraControlRef} />
+            <OrbitControls makeDefault />
             <ambientLight intensity={1} />
             <directionalLight />
             <pointLight position={[1, 1, 1]} />
             <Sphere />
-            <Box position={[-2.25, 0, 0]} />
-            <Box position={[2.25, 0, 0]} />
+            <Bounds fit clip observe margin={1.5}>
+                <SelectToZoom>
+                    <Box position={[0, 0, -position]} />
+                    <Box position={[0, 0, position]} />
+                    <Box position={[0, -position, 0]} />
+                    <Box position={[0, position, 0]} />
+                    <Box position={[-position, 0, 0]} />
+                    <Box position={[position, 0, 0]} />
+                </SelectToZoom>
+            </Bounds>
         </Canvas>
     )
 }

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Sphere with Interactive Cubes</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #container {
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="popup" style="display: none;">
+        <p id="popupMessage"></p>
+        <button onclick="closePopup()">Close</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Initialize variables
+        let scene, camera, renderer, sphere, popup;
+        const cubes = [];
+
+        // Initialize mouse coordinates
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // Initialize rotation speed
+        const rotationSpeed = 0.005;
+
+        // Initialize zoom speed
+        const zoomSpeed = 0.1;
+        const minZoom = 2;
+        const maxZoom = 10;
+
+        // Initialize the container
+        const container = document.getElementById("container");
+
+        // Initialize the scene
+        scene = new THREE.Scene();
+
+        // Initialize the camera
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        // Initialize the renderer
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        // Create the sphere geometry
+        const geometry = new THREE.SphereGeometry(1, 32, 32);
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+        sphere = new THREE.Mesh(geometry, material);
+
+        // Add the sphere to the scene
+        scene.add(sphere);
+
+        // Create cubes on the sphere's surface
+        const cubeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+        const initialCubeMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const greenCubeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        let selectedCube = null;
+
+        for (let i = 0; i < 10; i++) {
+            const phi = Math.random() * Math.PI;
+            const theta = Math.random() * 2 * Math.PI;
+            const radius = 1;
+
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi) * Math.sin(theta);
+            const z = radius * Math.cos(phi);
+
+            const cube = new THREE.Mesh(cubeGeometry, initialCubeMaterial);
+            cube.position.set(x, y, z);
+            cube.lookAt(sphere.position); // Face the sphere's center
+            cubes.push({ cube, phi, theta });
+            scene.add(cube);
+
+            // Add event listener for cube click
+            cube.addEventListener("click", () => {
+                if (selectedCube) {
+                    selectedCube.material = initialCubeMaterial;
+                }
+                selectedCube = cube;
+                selectedCube.material = greenCubeMaterial;
+                openPopup("popup");
+            });
+        }
+
+        // Add event listener to track mouse movement
+        document.addEventListener("mousemove", (event) => {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        // Add event listener for mouse wheel (zoom)
+        document.addEventListener("wheel", (event) => {
+            if (camera.position.z + event.deltaY * zoomSpeed >= minZoom &&
+                camera.position.z + event.deltaY * zoomSpeed <= maxZoom) {
+                camera.position.z += event.deltaY * zoomSpeed;
+            }
+        });
+
+        // Initialize variables for click and hold rotation
+        let isMouseDown = false;
+        let previousMouseX = 0;
+        let previousMouseY = 0;
+
+        // Add event listener for mouse down (click and hold)
+        document.addEventListener("mousedown", (event) => {
+            isMouseDown = true;
+            previousMouseX = event.clientX;
+            previousMouseY = event.clientY;
+        });
+
+        // Add event listener for mouse up (release)
+        document.addEventListener("mouseup", () => {
+            isMouseDown = false;
+        });
+
+        // Function to handle popup display
+        function openPopup(message) {
+            document.getElementById("popupMessage").textContent = message;
+            popup.style.display = "block";
+        }
+
+        // Function to close the popup
+        function closePopup() {
+            popup.style.display = "none";
+        }
+
+        // Function to animate the sphere
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate the sphere based on mouse movement when not holding the mouse button
+            if (!isMouseDown) {
+                sphere.rotation.x += rotationSpeed * (mouseY - sphere.rotation.x);
+                sphere.rotation.y += rotationSpeed * (mouseX - sphere.rotation.y);
+            }
+
+            // Rotate the cubes with the sphere
+            cubes.forEach(({ cube, phi, theta }) => {
+                cube.position.set(
+                    Math.sin(phi + sphere.rotation.x) * Math.cos(theta + sphere.rotation.y),
+                    Math.sin(phi + sphere.rotation.x) * Math.sin(theta + sphere.rotation.y),
+                    Math.cos(phi + sphere.rotation.x)
+                );
+            });
+
+            // Rotate the sphere based on mouse drag (click and hold)
+            if (isMouseDown) {
+                const deltaX = (event.clientX - previousMouseX) * rotationSpeed;
+                const deltaY = (event.clientY - previousMouseY) * rotationSpeed;
+
+                sphere.rotation.y -= deltaX;
+                sphere.rotation.x -= deltaY;
+
+                previousMouseX = event.clientX;
+                previousMouseY = event.clientY;
+            }
+
+            // Render the scene
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resizing
+        window.addEventListener("resize", () => {
+            const newWidth = window.innerWidth;
+            const newHeight = window.innerHeight;
+
+            camera.aspect = newWidth / newHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(newWidth, newHeight);
+        });
+
+        // Start the animation
+        animate();
+    </script>
+</body>
+</html>
